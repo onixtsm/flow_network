@@ -337,6 +337,8 @@ def main() -> None:
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
+    for i, _ in enumerate(labels):
+        labels[i] = labels[i] / params["delta_A"][i]
     if 1:
         inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     else:
@@ -348,7 +350,6 @@ def main() -> None:
     data = TensorData(inputs_h, labels, settings.device)
     train, test = split_data(data, settings.split)
     test_input, test_labels = test[:]
-
     test_input = test_input.to(settings.device)
     test_labels = test_labels.to(settings.device)
 
