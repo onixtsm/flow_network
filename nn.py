@@ -55,7 +55,8 @@ class ViscosityNet2(nn.Module):
         layers = []
         channels_int = 1
         for x in range(layer_count):
-            layers.append(nn.Conv2d(channels_int, n, k_size, padding="same", bias=False))
+            layers.append(nn.Conv2d(channels_int, n, k_size,
+                          padding="same", bias=False))
             layers.append(nn.ReLU())
             if x % 2:
                 layers.append(nn.Dropout2d(drop))
@@ -64,17 +65,15 @@ class ViscosityNet2(nn.Module):
 
         self.conv = nn.Sequential(*layers)
 
-
     def mult(self, x: torch.Tensor, y):
         y = y.view(-1, 1, 32, 64)
         return y * x
-
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.conv(x)
         # y = self.dense(y)
         # y = self.mult(y, x)
-        return y #x.view(-1, 1, 32, 64)
+        return y  # x.view(-1, 1, 32, 64)
 
 
 class ViscosityNet(nn.Module):
@@ -126,7 +125,7 @@ class ViscosityNet(nn.Module):
         # y = self.dense(y)
         # y = y.view(-1, 1, 32, 64)
         # x = y * x
-        return y #x.view(-1, 1, 32, 64)
+        return y  # x.view(-1, 1, 32, 64)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -154,7 +153,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--split", type=int,
                         help="Set percent of split for data")
     parser.add_argument("--seed", type=int, help="Set seed")
-    parser.add_argument("--kernel_size","-k", type=int, help="Set seed")
+    parser.add_argument("--kernel_size", "-k", type=int, help="Set seed")
 
     parser.set_defaults(**settings)
     settings = parser.parse_args()
@@ -250,7 +249,7 @@ def phys_loss(pred: torch.Tensor, inputs: torch.Tensor, labels: torch.Tensor, nf
     # for i, input in enumerate(inputs_n):
     #     inputs_r[i] = torch.max(input) - input
     inputs_r = (inputs == 0).float()
-    
+
     # inputs_r = 1 - inputs_n
 
     no_flow_loss = nfp * torch.square(torch.sum(pred * inputs_r))
@@ -258,10 +257,12 @@ def phys_loss(pred: torch.Tensor, inputs: torch.Tensor, labels: torch.Tensor, nf
         torch.square(torch.sum(inputs_n * ((labels - pred) / (labels + eps))))
     return no_flow_loss + flow_loss
 
-def mse_loss(pred, truth, eps = 1e-8):
+
+def mse_loss(pred, truth, eps=1e-8):
     assert isinstance(eps, float)
     error = torch.square((truth - pred) / (truth + eps))
     return error.mean(dim=(1, 2)).mean()
+
 
 def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-8):
     assert isinstance(eps, float)
@@ -336,7 +337,7 @@ def main() -> None:
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
-    if 1:
+    if 0:
         inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     else:
         labels = homogenise_labels(labels, params)
@@ -354,7 +355,7 @@ def main() -> None:
     model = None
     if settings.model is None:
         model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
-                             ).to(settings.device)
+                              ).to(settings.device)
     else:
         model = torch.load(settings.model)
 
