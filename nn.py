@@ -67,7 +67,7 @@ class ViscosityNet2(nn.Module):
 
     def mult(self, x: torch.Tensor, y):
         y = y.view(-1, 1, 32, 64)
-        return y * x
+        return y * (-1)*x
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.conv(x)
