@@ -367,8 +367,8 @@ def main() -> None:
     plt.yscale("log")
     plt.show()
     t, tt = train[:]
-    predicitons = model(t)
-    plot_comparison(t[17], tt[17], predicitons[17].detach())
+    predicitons = model(t[17])
+    plot_comparison(t[17], tt[17], predicitons.detach())
 
 
 if __name__ == "__main__":
