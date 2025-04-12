@@ -366,9 +366,10 @@ def main() -> None:
     plt.plot(loss_dict["test"])
     plt.yscale("log")
     plt.show()
+    train = train[:5]
     t, tt = train[:]
-    predicitons = model(t[17])
-    plot_comparison(t[17], tt[17], predicitons.detach())
+    predicitons = model(t)
+    plot_comparison(t[3], tt[3], predicitons[3].detach())
 
 
 if __name__ == "__main__":
