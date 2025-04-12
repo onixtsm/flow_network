@@ -337,7 +337,7 @@ def main() -> None:
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
-    if 0:
+    if 1:
         inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     else:
         labels = homogenise_labels(labels, params)
