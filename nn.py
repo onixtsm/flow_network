@@ -274,16 +274,30 @@ def main() -> None:
     test_labels = test_labels.to(settings.device)
 
     model = None
+    old_loss_dict = {"train": [], "test": []}
     if settings.model is None:
         model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
                               ).to(settings.device)
     else:
         l = torch.load(settings.model)
         model = l['model']
+        old_loss_dict = l['loss_dict']
+
 
     model, loss_dict, best_epoch = train_model(
         train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
+
+    combined = {}
+    for key in old_loss_dict:
+        combined[key] = old_loss_dict[key] + loss_dict.get(key, [])
+
+    for key in loss_dict:
+        if key not in combined:
+            combined[key] = loss_dict[key]
+
+    loss_dict = combined
+
     torch.save({
         "model": model,
         "loss_dict": loss_dict,
