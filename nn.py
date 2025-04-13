@@ -370,7 +370,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     torch.serialization.add_safe_globals(
-        [ViscosityNet2, nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Dropout2d, nn.Flatten, nn.Linear])
+        [UNET, nn.ModuleList, nn.ConvTranspose2d, DoubleConv, nn.BatchNorm2d, ViscosityNet2, nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Dropout2d, nn.Flatten, nn.Linear])
     start_time = time.time()
     main()
     print(f"Execution took {time.time() - start_time:.3f} seconds")
