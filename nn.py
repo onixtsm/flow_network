@@ -108,7 +108,7 @@ class ViscosityNet2(nn.Module):
     def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
         b = True
         super().__init__()
-        layer_count = int(np.ceil(63.0 / k_size))
+        layer_count = int(np.ceil(63.0 / 2))
         layers = []
         channels_int = 1
         for x in range(layer_count):
@@ -317,6 +317,18 @@ def main() -> None:
     labels = homogenise_labels(labels, params)
     inputs_h, labels = augment_rotationally(inputs_h, labels)
 
+    mean = torch.mean(labels)
+    std = torch.std(labels)
+    min_val = torch.min(labels)
+    max_val = torch.max(labels)
+    median = torch.median(labels)
+
+    print(f"Label mean: {mean:.6f} m³/s")
+    print(f"Label std: {std:.6f} m³/s")
+    print(f"Min: {min_val:.6f} m³/s, Max: {max_val:.6f} m³/s")
+    print(f"Median: {median:.6f} m³/s")
+    exit(1)
+
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
     #     inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i])
@@ -326,6 +338,8 @@ def main() -> None:
     mean_labels = labels.mean()
     labels_new = labels.clone()
     inputs_new = inputs_h.clone()
+
+
 
 
     labels = labels_new
@@ -340,9 +354,9 @@ def main() -> None:
     model = None
     old_loss_dict = {"train": [], "test": []}
     if settings.model is None:
-        # model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
-        #                       ).to(settings.device)
-        model = UNET(in_channels=inputs_h.shape[1]).to(settings.device)
+        model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
+                              ).to(settings.device)
+        # model = UNET(in_channels=inputs_h.shape[1]).to(settings.device)
     else:
         l = torch.load(settings.model)
         model = l['model']
