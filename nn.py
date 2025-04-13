@@ -187,7 +187,7 @@ def split_data(data, percent=80):
 
 
 def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
-    params["q"] = torch.square(params["delta_A"]) * \
+    params["q"] = np.square(params["delta_A"]) * \
         params["delta_p"] / (params["visc"] * params["L"])
     return params
 
@@ -336,13 +336,11 @@ def main() -> None:
 
     params = pd.read_csv("./inputs/train_params.csv", index_col=False)
     params = homogenise_params(params)
-    # params = homogenise_parameters(params)
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
     inputs_h = torch.from_numpy(inputs)
     inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
-    # labels = homogenise_labels2(labels, params)
 
     # inputs_h, labels = augment_rotationally(inputs_h, labels)
 
