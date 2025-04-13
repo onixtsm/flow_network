@@ -9,6 +9,31 @@ from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 
 
+def plot_comparison3(input_img, label_img, prediction_img):
+    input_img = input_img.detach().cpu() if isinstance(
+        input_img, torch.Tensor) else input_img
+    label_img = label_img.detach().cpu() if isinstance(
+        label_img, torch.Tensor) else label_img
+    prediction_img = prediction_img.detach().cpu() if isinstance(
+        prediction_img, torch.Tensor) else prediction_img
+
+    # Reshape to 2D
+    input_img = input_img.view(32, 64)
+    label_img = label_img.view(32, 64)
+    prediction_img = prediction_img.view(32, 64)
+
+    # Plot all three images side by side
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    titles = ["Input", "Label", "Prediction"]
+    images = [input_img, label_img, prediction_img]
+    for ax, img, title in zip(axes, images, titles):
+        im = ax.imshow(img)
+        ax.set_title(title)
+        ax.axis("off")
+        fig.colorbar(im, ax=ax, orientation="horizontal")
+    plt.show()
+
+
 def save_predictions_to_csv(predictions, csv_save_path):
     output_np = predictions.detach().cpu().numpy()  # convert to numpy array
     output_np = output_np.squeeze()  # remove channel dimension new shape: (N, 32, 64)
@@ -104,6 +129,9 @@ def main():
 
     parser.add_argument(
         "-n", "--num_params", action="store_true", help="Plot errors")
+    parser.add_argument(
+        "-t", "--test", action="store_true", help="Plot errors")
+    args = parser.parse_args()
     args = parser.parse_args()
 
     # data = pd.read_csv("./kaggle_hidden_test_fences.csv")
@@ -125,20 +153,31 @@ def main():
         num_params(model)
         return
 
-    params = pd.read_csv("./inputs/hidden_test_params.csv", index_col=False)
-    params = homogenise_params(params)
-    inputs = np.load("./inputs/hidden_test_inputs.npy")
+    if args.test:
+        params = pd.read_csv("./inputs/train_params.csv", index_col=False)
+        params = homogenise_params(params)
 
-    inputs = torch.from_numpy(inputs)
+        inputs = np.load("./inputs/train_inputs.npy")
+        labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
+        inputs = torch.from_numpy(inputs)
+    else:
+        params = pd.read_csv("./inputs/hidden_test_params.csv", index_col=False)
+        params = homogenise_params(params)
+        inputs = np.load("./inputs/hidden_test_inputs.npy")
+
+        inputs = torch.from_numpy(inputs)
     inputs = inputs.unsqueeze(1)
 
-    device = next(model.parameters()).device 
+    device = next(model.parameters()).device
     inputs = inputs.to(device)
     pred = model(inputs)
-    pred = homogenise_labels(pred, params)
-    plot_comparison(inputs[3], pred[3])
-    save_predictions_to_csv(
-        pred, f"./kaggle/kaggle_{os.path.basename(args.model)}.csv")
+    if args.test:
+        plot_comparison3(inputs[3], labels[3], pred[3])
+    else:
+      pred = homogenise_labels(pred, params)
+      plot_comparison(inputs[3], pred[3])
+      save_predictions_to_csv(
+          pred, f"./kaggle/kaggle_{os.path.basename(args.model)}.csv")
     # df = pd.DataFrame(test_pred.detach().numpy(), columns=["prediction"])
     # df.to_csv(f"ce_kaggle_{os.path.basename(args.model)}.csv", index=True)
 
