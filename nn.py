@@ -62,8 +62,8 @@ class ViscosityNet2(nn.Module):
             layers.append(nn.Conv2d(channels_int, n, k_size,
                           padding="same", bias=b))
             layers.append(nn.ReLU())
-            # if x % 2:
-            #     layers.append(nn.Dropout2d(drop))
+            if x % 2:
+                layers.append(nn.Dropout2d(drop))
             channels_int = n
         layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
 
