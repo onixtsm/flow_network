@@ -108,7 +108,7 @@ class ViscosityNet2(nn.Module):
     def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
         b = True
         super().__init__()
-        layer_count = int(np.ceil(63.0 / 2))
+        layer_count = int(np.ceil(63.0 / (k_size - 1)))
         layers = []
         channels_int = 1
         for x in range(layer_count):
@@ -301,6 +301,30 @@ def augment_rotationally(inputs, labels):
     return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
 
 
+def relative_error_loss_phys(pred, target, eps=1e-8, images =  False):
+    assert pred.shape == target.shape, "Shape mismatch between predictions and targets"
+    
+
+    rel_error = torch.abs( target- pred) / (torch.abs(target) + eps)
+
+    spatial_mean = torch.mean(rel_error, dim=(-2, -1))  # Assuming (batch, channels, Nx, Ny)
+
+    dataset_mean = torch.mean(spatial_mean)
+    return dataset_mean
+
+
+def homogenise_parameters(parameters):
+    df = parameters.copy()
+    df["homogeneous"] = df["delta_A"] * df["delta_p"] / df["visc"] / df["L"]
+    return df
+
+
+def homogenise_labels2(labels: np.array, params: pd.DataFrame):
+    labels_h = labels.clone()
+    for i, label in enumerate(labels):
+        labels_h[i] = label / params['homogeneous'][i]
+    return labels_h
+
 def main() -> None:
     settings = parse_arguments()
     print(settings)
@@ -308,26 +332,15 @@ def main() -> None:
         torch.manual_seed(settings.seed)
 
     params = pd.read_csv("./inputs/train_params.csv", index_col=False)
-    params = homogenise_params(params)
+    # params = homogenise_params(params)
+    params = homogenise_parameters(params)
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
     inputs_h = torch.from_numpy(inputs)
     # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
-    labels = homogenise_labels(labels, params)
+    labels = homogenise_labels2(labels, params)
     inputs_h, labels = augment_rotationally(inputs_h, labels)
-
-    mean = torch.mean(labels)
-    std = torch.std(labels)
-    min_val = torch.min(labels)
-    max_val = torch.max(labels)
-    median = torch.median(labels)
-
-    print(f"Label mean: {mean:.6f} m³/s")
-    print(f"Label std: {std:.6f} m³/s")
-    print(f"Min: {min_val:.6f} m³/s, Max: {max_val:.6f} m³/s")
-    print(f"Median: {median:.6f} m³/s")
-    exit(1)
 
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
@@ -354,9 +367,9 @@ def main() -> None:
     model = None
     old_loss_dict = {"train": [], "test": []}
     if settings.model is None:
-        model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
-                              ).to(settings.device)
-        # model = UNET(in_channels=inputs_h.shape[1]).to(settings.device)
+        # model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
+        #                       ).to(settings.device)
+        model = UNET(in_channels=inputs_h.shape[1]).to(settings.device)
     else:
         l = torch.load(settings.model)
         model = l['model']
@@ -364,7 +377,7 @@ def main() -> None:
 
 
     model, loss_dict, best_epoch = train_model(
-        train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
+        train, test_input, test_labels, model, relative_error_loss_phys, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
 
     combined = {}
