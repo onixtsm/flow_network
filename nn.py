@@ -52,7 +52,7 @@ def plot_comparison(input_img, label_img, prediction_img):
 
 
 class ViscosityNet2(nn.Module):
-    def __init__(self, n, drop=0.4, pool=2, k_size=3, device="cpu") -> None:
+    def __init__(self, n, drop=0.5, pool=2, k_size=3, device="cpu") -> None:
         b = True
         super().__init__()
         layer_count = int(np.ceil(63.0 / k_size))
