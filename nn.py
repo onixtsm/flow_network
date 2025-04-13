@@ -275,6 +275,7 @@ def train_model(
 
     return best_model, loss_dict, e
 
+
 def plot_params(params) -> None:
     fig, ax = plt.subplots(2, 2)
     ax[0, 0].scatter(params.id, params
@@ -291,6 +292,15 @@ def plot_params(params) -> None:
     plt.show()
 
 
+def augment_rotationally(inputs, labels):
+    inputs_r = inputs.clone()
+    labels_r = labels.clone()
+    for i, x in enumerate(labels):
+        inputs_r[i] = torch.flip(inputs[i], dims=[0])
+        labels_r[i] = torch.flip(labels[i], dims=[0])
+    return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
+
+
 def main() -> None:
     settings = parse_arguments()
     print(settings)
@@ -305,6 +315,7 @@ def main() -> None:
     inputs_h = torch.from_numpy(inputs)
     # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     labels = homogenise_labels(labels, params)
+    inputs_h, labels = augment_rotationally(inputs_h, labels)
 
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
