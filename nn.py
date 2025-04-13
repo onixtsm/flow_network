@@ -16,6 +16,7 @@ def plot_image(img, title=None, ax=None):
         img, torch.Tensor) else img
     img = img.view(32, 64)
     plt.imshow(img)
+    plt.colorbar()
     plt.axis('off')
     plt.show()
     return ax
@@ -42,11 +43,11 @@ def plot_comparison(input_img, label_img, prediction_img):
     fig, axes = plt.subplots(1, 3, figsize=(12, 4))
     titles = ["Input", "Label", "Prediction"]
     images = [input_img, label_img, prediction_img]
-
     for ax, img, title in zip(axes, images, titles):
-        ax.imshow(img)
+        im = ax.imshow(img)
         ax.set_title(title)
         ax.axis("off")
+        fig.colorbar(im, ax=ax, orientation="horizontal")
     plt.show()
 
 
@@ -69,7 +70,7 @@ class ViscosityNet2(nn.Module):
 
     def mult(self, x: torch.Tensor, y):
         y = y.view(-1, 1, 32, 64)
-        return y * (-1)*x
+        return x * y
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.conv(x)
@@ -131,12 +132,9 @@ def split_data(data, percent=80):
 
 
 def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
-    # [delta_A] = m^2
-    # [delta_p] = Pa
-    # [visc] = Pa*s
-    # [L] = m
     params["q"] = params["delta_A"] * \
-        params["delta_p"] / (params["visc"] * params["L"])
+        params["delta_p"] / (params["visc"] * params["L"]) * params["delta_A"]
+    # params['q'] = params["L"] * params["delta_A"] * params["delta_p"] / (params["visc"])
     return params
 
 
@@ -152,67 +150,6 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
     for i, label in enumerate(labels):
         labels_h[i] = label * params['q'][i]
     return labels_h
-
-
-def plot_params(params) -> None:
-    fig, ax = plt.subplots(2, 2)
-    ax[0, 0].scatter(params["train"].id, params["train"]
-                     ["delta_p"], label="delta_p")
-    ax[0, 0].set_title("delta_p")
-    ax[0, 1].scatter(params["train"].id, params["train"]["L"], label="L")
-    ax[0, 1].set_title("L")
-    ax[1, 0].scatter(params["train"].id, params["train"]["visc"], label="visc")
-    ax[1, 0].set_title("visc")
-    ax[1, 1].scatter(params["train"].id, params["train"]
-                     ["delta_A"], label="delta_A")
-    ax[1, 1].set_title("delta_A")
-    plt.legend()
-    plt.show()
-
-    # flow_loss = torch.mean(torch.log(torch.cosh((pred - labels + eps))))
-    # no_flow_loss = n1 * torch.mean(labels-inputs_rev * pred) / eps  # mean [q] m/s
-    # flow_loss = n2 * ((labels - pred) / (labels + eps)).mean(dim=(1, 2)).mean()  # mean number
-# [inputs] = m/s
-
-
-# def loss_in_flowable(pred, inputs, labels):
-#     n = 0
-#     loss = 0
-#     for i, pic in enumerate(inputs):
-#         for j, p in enumerate(pic):
-#             for k, p_1 in enumerate(p):
-#                 for l, p_2 in enumerate(p_1):
-#                   if p_2 != 0:
-#                       loss += pred[i][j][k][l] - labels[i][j][k][l]
-#                       n += 1
-#     return loss / n
-
-# def phys_loss(pred: torch.Tensor, inputs: torch.Tensor, labels: torch.Tensor, nfp: float = 1e-3, fp: float = 1) -> float:
-#     pred = pred.view(inputs.shape)
-
-def phys_loss(pred: torch.Tensor, inputs: torch.Tensor, labels: torch.Tensor, nfp: float = 1, fp: float = 1) -> float:
-    eps = 1e-8
-    # pred = pred.view(inputs.shape)
-    inputs_n = inputs.clone()
-    # for i, input in enumerate(inputs):
-    #     inputs_n[i] = input / torch.max(input)
-    # inputs_r = inputs_n.clone()
-    # for i, input in enumerate(inputs_n):
-    #     inputs_r[i] = torch.max(input) - input
-    inputs_r = (inputs == 0).float()
-
-    # inputs_r = 1 - inputs_n
-
-    no_flow_loss = nfp * torch.square(torch.sum(pred * inputs_r))
-    flow_loss = fp * \
-        torch.square(torch.sum(inputs_n * ((labels - pred) / (labels + eps))))
-    return no_flow_loss + flow_loss
-
-
-def mse_loss(pred, truth, eps=1e-8):
-    assert isinstance(eps, float)
-    error = torch.square((truth - pred) / (truth + eps))
-    return error.mean(dim=(1, 2)).mean()
 
 
 def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-8):
@@ -295,10 +232,11 @@ def main() -> None:
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
-    for i, _ in enumerate(labels):
-        labels[i] = labels[i] / params["delta_A"][i]
     inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
 
+    for i, _ in enumerate(labels):
+        labels[i] = labels[i] / torch.max(labels[i]) 
+        inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i]) 
     inputs_h = inputs_h.unsqueeze(1)
     labels = labels.unsqueeze(1)
     data = TensorData(inputs_h, labels, settings.device)
