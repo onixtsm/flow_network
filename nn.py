@@ -7,6 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+import copy
+import datetime
 
 
 def plot_image(img, title=None, ax=None):
@@ -241,6 +243,9 @@ def train_model(
 
     # Print header.
     print(f"Epoch    Train loss      Test loss")
+    best_model = None
+    best_loss = float('inf')
+    e = None
 
     try:
         for epoch in range(epochs):
@@ -264,6 +269,10 @@ def train_model(
                 #     test_pred, test_input, test_labels)
                 test_loss = loss_fn(test_pred, test_labels)
                 loss_dict["test"].append(test_loss.item())
+                if test_loss.item() < best_loss:
+                    best_model = copy.deepcopy(model)
+                    best_loss = copy.copy(test_loss.item())
+                    e = copy.copy(epoch)
 
             if (epoch + 1) % print_every == 0:
                 print(
@@ -272,7 +281,7 @@ def train_model(
     except KeyboardInterrupt:
         pass
 
-    return model, loss_dict
+    return best_model, loss_dict, e
 
 
 def main() -> None:
@@ -305,15 +314,20 @@ def main() -> None:
     else:
         model = torch.load(settings.model)
 
-    model, loss_dict = train_model(
+    model, loss_dict, best_epoch = train_model(
         train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
-    torch.save(model, "./model.pt")
+    time = datetime.datetime.now().strftime("%a_%H_%M")
+    torch.save({
+        "model": model,
+        "loss_dict": loss_dict,
+        }, f"./outputs/{time}.pt")
     plt.plot(loss_dict["train"])
     plt.plot(loss_dict["test"])
     plt.yscale("log")
     plt.show()
     train = train[:5]
     t, tt = train[:]
+    print(f"Best epoch {best_epoch}")
     predicitons = model(t)
     plot_comparison(t[3], tt[3], predicitons[3].detach())
 
