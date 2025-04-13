@@ -64,7 +64,7 @@ class DoubleConv(nn.Module):
 
 
 class UNET(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1, features = [32, 64, 128, 256]):
+    def __init__(self, in_channels=3, out_channels=1, features = [32, 64, 128, 256]/4):
         super(UNET, self).__init__()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
@@ -101,11 +101,7 @@ class UNET(nn.Module):
             concat_skip = torch.cat((skip, x), dim=1)
             x = self.ups[id+1](concat_skip)
 
-        return self.mult(self.final_conv(x), x)
-
-    def mult(self, x: torch.Tensor, y):
-        y = y.view(-1, 1, 32, 64)
-        return x * y
+        return self.final_conv(x)
 
 
 class ViscosityNet2(nn.Module):
