@@ -133,7 +133,6 @@ def split_data(data, percent=80):
 def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
     params["q"] = params["delta_A"] * \
         params["delta_p"] / (params["visc"] * params["L"]) * params["delta_A"]
-    # params['q'] = params["L"] * params["delta_A"] * params["delta_p"] / (params["visc"])
     return params
 
 
@@ -151,7 +150,15 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
     return labels_h
 
 
-def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-8):
+def cosine_loss(pred, label, eps=1e-8):
+    dot = torch.sum(pred * label, dim=1)
+    pred_norm = torch.norm(pred, dim=1)
+    label_norm = torch.norm(label, dim=1)
+    cos_sim = dot / (pred_norm * label_norm + eps)
+    return torch.mean(1 - cos_sim)
+
+
+def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-5):
     assert isinstance(eps, float)
     error = torch.abs((truth - pred) / (truth + eps))
     return error.mean(dim=(1, 2)).mean()
@@ -200,7 +207,7 @@ def train_model(
             loss_dict["train"].append(epoch_loss_sum / len(train_data_loader))
             with torch.no_grad():
                 model.eval()
-                test_pred = model(test_input)  # m/s
+                test_pred = model(test_input)  
                 # test_loss = loss_fn(
                 #     test_pred, test_input, test_labels)
                 test_loss = loss_fn(test_pred, test_labels)
@@ -218,6 +225,21 @@ def train_model(
         pass
 
     return best_model, loss_dict, e
+
+def plot_params(params) -> None:
+    fig, ax = plt.subplots(2, 2)
+    ax[0, 0].scatter(params.id, params
+                     ["delta_p"], label="delta_p")
+    ax[0, 0].set_title("delta_p")
+    ax[0, 1].scatter(params.id, params["L"], label="L")
+    ax[0, 1].set_title("L")
+    ax[1, 0].scatter(params.id, params["visc"], label="visc")
+    ax[1, 0].set_title("visc")
+    ax[1, 1].scatter(params.id, params
+                     ["delta_A"], label="delta_A")
+    ax[1, 1].set_title("delta_A")
+    plt.legend()
+    plt.show()
 
 
 def main() -> None:
@@ -242,29 +264,12 @@ def main() -> None:
     labels = labels.unsqueeze(1)
 
     mean_labels = labels.mean()
-    counter = 0
     labels_new = labels.clone()
     inputs_new = inputs_h.clone()
-    # if 1:
-    #     for i, _ in enumerate(labels):
-    #         if labels[i].mean() > 3 * mean_labels:
-    #             labels_new = torch.cat((labels[:i], labels[i+1:]))
-    #             inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
-    #             counter += 1
-    # else:
-    #     for i, _ in enumerate(labels):
-    #         if labels[i].mean() < mean_labels:
-    #             label_diff = torch.abs(mean_labels - labels[i].mean())
-    #             labels_new = torch.cat((labels_new, (labels[i] * (label_diff)).unsqueeze(0)))
-    #             inputs_new = torch.cat((inputs_new, (inputs_h[i]).unsqueeze(0)))
-    #             counter += 1
 
 
     labels = labels_new
     inputs_h = inputs_new
-    print(f"Shape {labels.shape}")
-
-    print(f"Removed {counter} inputs ")
 
     data = TensorData(inputs_h, labels, settings.device)
     train, test = split_data(data, settings.split)
@@ -281,7 +286,7 @@ def main() -> None:
         model = l['model']
 
     model, loss_dict, best_epoch = train_model(
-        train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
+        train, test_input, test_labels, model, cosine_loss, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
     torch.save({
         "model": model,
