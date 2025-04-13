@@ -154,7 +154,7 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
 def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-8):
     assert isinstance(eps, float)
     error = torch.abs((truth - pred) / (truth + eps))
-    return error.mean(dim=(1, 2)).mean() 
+    return error.mean(dim=(1, 2)).mean() + 1/(truth-pred).mean().abs()
 
 
 def train_model(
