@@ -138,7 +138,7 @@ def main():
     pred = homogenise_labels(pred, params)
     plot_comparison(inputs[3], pred[3])
     save_predictions_to_csv(
-        pred, f"./kaggle/kaggle_{os.path.basename(args.model)}.csv", index=True)
+        pred, f"./kaggle/kaggle_{os.path.basename(args.model)}.csv")
     # df = pd.DataFrame(test_pred.detach().numpy(), columns=["prediction"])
     # df.to_csv(f"ce_kaggle_{os.path.basename(args.model)}.csv", index=True)
 
