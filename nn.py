@@ -48,90 +48,91 @@ def plot_comparison(input_img, label_img, prediction_img):
 
 
 class DoubleConv(nn.Module):
-  def __init__(self, in_channels, out_channels):
-    super(DoubleConv, self).__init__()
-    self.conv = nn.Sequential(
-      nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False),  # k_size=3
-      nn.BatchNorm2d(out_channels),
-      nn.ReLU(inplace=True),
-      nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
-      nn.BatchNorm2d(out_channels),
-      nn.ReLU(inplace=True),
-    )
+    def __init__(self, in_channels, out_channels):
+        super(DoubleConv, self).__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, 3,
+                      1, 1, bias=False),  # k_size=3
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True),
+        )
 
-  def forward(self, x):
-    return self.conv(x)
+    def forward(self, x):
+        return self.conv(x)
 
 
 class UNET(nn.Module):
-  def __init__(self, in_channels=3, out_channels=1, features=[4, 8, 16, 32]):
-    super(UNET, self).__init__()
-    self.ups = nn.ModuleList()
-    self.downs = nn.ModuleList()
-    self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+    def __init__(self, in_channels=3, out_channels=1, features=[4, 8, 16, 32]):
+        super(UNET, self).__init__()
+        self.ups = nn.ModuleList()
+        self.downs = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-    # Down part of UNET
-    for feature in features:
-      self.downs.append(DoubleConv(in_channels, feature))
-      in_channels = feature
+        # Down part of UNET
+        for feature in features:
+            self.downs.append(DoubleConv(in_channels, feature))
+            in_channels = feature
 
-    for feature in reversed(features):
-      self.ups.append(
-        nn.ConvTranspose2d(feature * 2, feature, kernel_size=2,
-                           stride=2)  # check what this does
-      )
-      self.ups.append(DoubleConv(feature * 2, feature))
+        for feature in reversed(features):
+            self.ups.append(
+                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2,
+                                   stride=2)  # check what this does
+            )
+            self.ups.append(DoubleConv(feature * 2, feature))
 
-    self.bottleneck = DoubleConv(features[-1], features[-1]*2)
-    self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
+        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
+        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
-  def forward(self, x):
-    skip_connections = []
+    def forward(self, x):
+        skip_connections = []
 
-    for down in self.downs:
-      x = down(x)
-      skip_connections.append(x)
-      x = self.pool(x)
+        for down in self.downs:
+            x = down(x)
+            skip_connections.append(x)
+            x = self.pool(x)
 
-    x = self.bottleneck(x)
-    skip_connections = skip_connections[::-1]
+        x = self.bottleneck(x)
+        skip_connections = skip_connections[::-1]
 
-    for id in range(0, len(self.ups), 2):
-      x = self.ups[id](x)
-      skip = skip_connections[id//2]
-      concat_skip = torch.cat((skip, x), dim=1)
-      x = self.ups[id+1](concat_skip)
+        for id in range(0, len(self.ups), 2):
+            x = self.ups[id](x)
+            skip = skip_connections[id//2]
+            concat_skip = torch.cat((skip, x), dim=1)
+            x = self.ups[id+1](concat_skip)
 
-    return self.final_conv(x)
+        return self.final_conv(x)
 
 
 class ViscosityNet2(nn.Module):
-  def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
-    b = True
-    super().__init__()
-    layer_count = int(np.ceil(63.0 / (k_size - 1)))
-    layers = []
-    channels_int = 1
-    for x in range(layer_count):
-      layers.append(nn.Conv2d(channels_int, n, k_size,
-                    padding="same", bias=b))
-      layers.append(nn.ReLU())
-      if x % 2:
-        layers.append(nn.Dropout2d(drop))
-      channels_int = n
-    layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
+    def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
+        b = True
+        super().__init__()
+        layer_count = int(np.ceil(63.0 / (k_size - 1)))
+        layers = []
+        channels_int = 1
+        for x in range(layer_count):
+            layers.append(nn.Conv2d(channels_int, n, k_size,
+                          padding="same", bias=b))
+            layers.append(nn.ReLU())
+            if x % 2:
+                layers.append(nn.Dropout2d(drop))
+            channels_int = n
+        layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
 
-    self.conv = nn.Sequential(*layers)
+        self.conv = nn.Sequential(*layers)
 
-  def mult(self, x: torch.Tensor, y):
-    y = y.view(-1, 1, 32, 64)
-    return x * y
+    def mult(self, x: torch.Tensor, y):
+        y = y.view(-1, 1, 32, 64)
+        return x * y
 
-  def forward(self, x: torch.Tensor) -> torch.Tensor:
-    y = self.conv(x)
-    # y = self.dense(y)
-    y = self.mult(y, x)
-    return y  # x.view(-1, 1, 32, 64)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = self.conv(x)
+        # y = self.dense(y)
+        y = self.mult(y, x)
+        return y  # x.view(-1, 1, 32, 64)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -186,16 +187,16 @@ def split_data(data, percent=80):
 
 
 def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
-  params["q"] = torch.square(params["delta_A"]) * \
-    params["delta_p"] / (params["visc"] * params["L"])
-  return params
+    params["q"] = torch.square(params["delta_A"]) * \
+        params["delta_p"] / (params["visc"] * params["L"])
+    return params
 
 
 def homogenise_inputs(inputs: np.array, params: pd.DataFrame):
-  inputs_h = inputs.copy()
-  for i, input in enumerate(inputs):
-    inputs_h[i] = input * params["q"][i]
-  return inputs_h
+    inputs_h = inputs.copy()
+    for i, input in enumerate(inputs):
+        inputs_h[i] = input * params["q"][i]
+    return inputs_h
 
 
 def homogenise_labels(labels: np.array, params: pd.DataFrame):
@@ -269,7 +270,7 @@ def train_model(
 
             if (epoch + 1) % print_every == 0:
                 print(
-                    f"{epoch+1: <7}  {loss_dict['train'][-1]                        : <14.6e}  {loss_dict['test'][-1]: <13.6e}"
+                    f"{epoch+1: <7}  {loss_dict['train'][-1]                                      : <14.6e}  {loss_dict['test'][-1]: <13.6e}"
                 )
     except KeyboardInterrupt:
         pass
@@ -289,26 +290,26 @@ def plot_params(params) -> None:
     ax[1, 1].scatter(params.id, params
                      ["delta_A"], label="delta_A")
     ax[1, 1].set_title("delta_A")
-  plt.legend()
-  plt.show()
+    plt.legend()
+    plt.show()
 
 
 def augment_rotationally(inputs, labels):
-  inputs_r = inputs.clone()
-  labels_r = labels.clone()
-  for i, x in enumerate(labels):
-    inputs_r[i] = torch.flip(inputs[i], dims=[0])
-    labels_r[i] = torch.flip(labels[i], dims=[0])
-  return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
+    inputs_r = inputs.clone()
+    labels_r = labels.clone()
+    for i, x in enumerate(labels):
+        inputs_r[i] = torch.flip(inputs[i], dims=[0])
+        labels_r[i] = torch.flip(labels[i], dims=[0])
+    return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
 
 
-def relative_error_loss_phys(pred, target, eps=1e-8, images =  False):
+def relative_error_loss_phys(pred, target, eps=1e-8, images=False):
     assert pred.shape == target.shape, "Shape mismatch between predictions and targets"
-    
 
-    rel_error = torch.abs( target- pred) / (torch.abs(target) + eps)
+    rel_error = torch.abs(target - pred) / (torch.abs(target) + eps)
 
-    spatial_mean = torch.mean(rel_error, dim=(-2, -1))  # Assuming (batch, channels, Nx, Ny)
+    # Assuming (batch, channels, Nx, Ny)
+    spatial_mean = torch.mean(rel_error, dim=(-2, -1))
 
     dataset_mean = torch.mean(spatial_mean)
     return dataset_mean
@@ -325,6 +326,7 @@ def homogenise_labels2(labels: np.array, params: pd.DataFrame):
     for i, label in enumerate(labels):
         labels_h[i] = label / params['homogeneous'][i]
     return labels_h
+
 
 def main() -> None:
     settings = parse_arguments()
@@ -367,7 +369,6 @@ def main() -> None:
         model = l['model']
         old_loss_dict = l['loss_dict']
 
-
     model, loss_dict, best_epoch = train_model(
         train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
@@ -385,7 +386,7 @@ def main() -> None:
     torch.save({
         "model": model,
         "loss_dict": loss_dict,
-        }, f"./outputs/{time}.pt")
+    }, f"./outputs/{time}.pt")
     plt.plot(loss_dict["train"])
     plt.plot(loss_dict["test"])
     plt.yscale("log")
