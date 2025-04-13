@@ -23,10 +23,6 @@ def plot_image(img, title=None, ax=None):
 
 
 def plot_comparison(input_img, label_img, prediction_img):
-    """
-    Plots the input, label, and prediction images side by side.
-    """
-    # Detach tensors if they require gradients
     input_img = input_img.detach().cpu() if isinstance(
         input_img, torch.Tensor) else input_img
     label_img = label_img.detach().cpu() if isinstance(
@@ -203,7 +199,7 @@ def train_model(
             loss_dict["train"].append(epoch_loss_sum / len(train_data_loader))
             with torch.no_grad():
                 model.eval()
-                test_pred = model(test_input)  
+                test_pred = model(test_input)
                 # test_loss = loss_fn(
                 #     test_pred, test_input, test_labels)
                 test_loss = loss_fn(test_pred, test_labels)

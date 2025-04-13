@@ -5,21 +5,24 @@ import os
 import argparse
 import torch
 from torch import nn
-import itertools
+from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 
+
 def save_predictions_to_csv(predictions, csv_save_path):
-    output_np = predictions.cpu().numpy()  # convert to numpy array 
+    output_np = predictions.cpu().numpy()  # convert to numpy array
     output_np = output_np.squeeze()  # remove channel dimension new shape: (N, 32, 64)
-    unseen_labels_flat = output_np.reshape(output_np.shape[0], -1)  # flatten to shape (N, 32*64)
-    
+    unseen_labels_flat = output_np.reshape(
+        output_np.shape[0], -1)  # flatten to shape (N, 32*64)
+
     # create a dataframe for your submission, this will have the format
     # id, 0, 1, 2, 3, ..., 2047
     # 0, value, value, value, value, ..., value
     # 1, value, value, value, value, ..., value
     # 2, value, value, value, value, ..., value
     # etc
-    df_pred = pd.DataFrame(unseen_labels_flat, columns=[str(i) for i in range(unseen_labels_flat.shape[1])])
+    df_pred = pd.DataFrame(unseen_labels_flat, columns=[
+                           str(i) for i in range(unseen_labels_flat.shape[1])])
     df_pred.insert(0, 'id', range(unseen_labels_flat.shape[0]))
 
     # save your submission file
@@ -31,17 +34,65 @@ def num_params(model):
     layer_idx = 0
 
     for param in model.parameters():
-        if len(param.shape) > 1: # weights
-            layers_store.append({"layer": layer_idx, "weight": param.numel(), "bias": 0})
+        if len(param.shape) > 1:  # weights
+            layers_store.append(
+                {"layer": layer_idx, "weight": param.numel(), "bias": 0})
             layer_idx += 1
-        else: # bias
+        else:  # bias
             # this bias is from the last layer, so add to that dict
             layers_store[-1]["bias"] = param.numel()
     # now we can loop over the list of dicts and print the info
     for layer in layers_store:
-        print(f"Layer {layer['layer']}: {layer['weight']} weights, {layer['bias']} biases")
+        print(f"Layer {layer['layer']}: {
+              layer['weight']} weights, {layer['bias']} biases")
     total_params = sum(param.numel() for param in model.parameters())
     print(f"Total parameters: {total_params}")
+
+
+def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
+    params["q"] = params["delta_A"] * \
+        params["delta_p"] / (params["visc"] * params["L"]) * params["delta_A"]
+    return params
+
+
+def homogenise_labels(labels: np.array, params: pd.DataFrame):
+    labels_h = labels.clone()
+    for i, label in enumerate(labels):
+        labels_h[i] = label / params['q'][i]
+    return labels_h
+
+
+def plot_comparison(input_img, prediction_img):
+    input_img = input_img.detach().cpu() if isinstance(
+        input_img, torch.Tensor) else input_img
+    prediction_img = prediction_img.detach().cpu() if isinstance(
+        prediction_img, torch.Tensor) else prediction_img
+
+    # Reshape to 2D
+    input_img = input_img.view(32, 64)
+    prediction_img = prediction_img.view(32, 64)
+
+    # Plot all three images side by side
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4))
+    titles = ["Input", "Prediction"]
+    images = [input_img, prediction_img]
+    for ax, img, title in zip(axes, images, titles):
+        im = ax.imshow(img)
+        ax.set_title(title)
+        ax.axis("off")
+        fig.colorbar(im, ax=ax, orientation="horizontal")
+    plt.show()
+
+
+class TensorData(Dataset):
+    def __init__(self, input_tensor, device="cpu"):
+        self.input = input_tensor.to(device)
+
+    def __len__(self):
+        return self.input.size()[0]
+
+    def __getitem__(self, index):
+        return self.input[index], self.labels[index]
 
 
 def main():
@@ -74,16 +125,22 @@ def main():
         num_params(model)
         return
 
-    model.load_state_dict(m["model_state_dict"])
-    # data = data.fillna(0)
-    # data = sort_homo_data(data)
-    # data = make_data_homo(data)
-    # data = test_preparer(data, get_input_col_names_2(data))
+    params = pd.read_csv("./inputs/hidden_test_params.csv", index_col=False)
+    params = homogenise_params(params)
+    inputs = np.load("./inputs/train_inputs.npy")
 
-    test_pred = model(data)
-    test_pred = torch.round(test_pred).long()
-    df = pd.DataFrame(test_pred.detach().numpy(), columns=["prediction"])
-    df.to_csv(f"ce_kaggle_{os.path.basename(args.model)}.csv", index=True)
+    inputs = torch.from_numpy(inputs)
+    inputs = inputs.unsqueeze(1)
+
+    device = next(model.parameters()).device 
+    inputs = inputs.to(device)
+    pred = model(inputs)
+    pred = homogenise_labels(pred, params)
+    plot_comparison(inputs[3], pred[3])
+    save_predictions_to_csv(
+        pred, f"./kaggle/kaggle_{os.path.basename(args, model).csv}", index=True)
+    # df = pd.DataFrame(test_pred.detach().numpy(), columns=["prediction"])
+    # df.to_csv(f"ce_kaggle_{os.path.basename(args.model)}.csv", index=True)
 
     return
 
@@ -121,4 +178,3 @@ if __name__ == "__main__":
     torch.serialization.add_safe_globals(
         [ViscosityNet2, nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Dropout2d, nn.Flatten, nn.Linear])
     main()
-
