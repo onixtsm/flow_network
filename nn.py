@@ -79,7 +79,6 @@ class ViscosityNet2(nn.Module):
         return y  # x.view(-1, 1, 32, 64)
 
 
-
 def parse_arguments() -> argparse.Namespace:
     settings = {
         "epochs": 42,
@@ -155,7 +154,7 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
 def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-8):
     assert isinstance(eps, float)
     error = torch.abs((truth - pred) / (truth + eps))
-    return error.mean(dim=(1, 2)).mean() + 1e2 / pred.mean()
+    return error.mean(dim=(1, 2)).mean() 
 
 
 def train_model(
@@ -213,7 +212,7 @@ def train_model(
 
             if (epoch + 1) % print_every == 0:
                 print(
-                    f"{epoch+1: <7}  {loss_dict['train'][-1]                                      : <14.6e}  {loss_dict['test'][-1]: <13.6e}"
+                    f"{epoch+1: <7}  {loss_dict['train'][-1]: <14.6e}  {loss_dict['test'][-1]: <13.6e}"
                 )
     except KeyboardInterrupt:
         pass
@@ -235,7 +234,6 @@ def main() -> None:
     inputs_h = torch.from_numpy(inputs)
     # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     labels = homogenise_labels(labels, params)
-            
 
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
@@ -247,14 +245,24 @@ def main() -> None:
     counter = 0
     labels_new = labels.clone()
     inputs_new = inputs_h.clone()
-    for i, _ in enumerate(labels):
-        if labels[i].mean() > 3 * mean_labels:
-            labels_new = torch.cat((labels[:i], labels[i+1:]))
-            inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
-            counter += 1
+    if 1:
+        for i, _ in enumerate(labels):
+            if labels[i].mean() > 3 * mean_labels:
+                labels_new = torch.cat((labels[:i], labels[i+1:]))
+                inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
+                counter += 1
+    else:
+        for i, _ in enumerate(labels):
+            if labels[i].mean() < mean_labels:
+                label_diff = torch.abs(mean_labels - labels[i].mean())
+                labels_new = torch.cat((labels_new, (labels[i] * (label_diff)).unsqueeze(0)))
+                inputs_new = torch.cat((inputs_new, (inputs_h[i]).unsqueeze(0)))
+                counter += 1
+
 
     labels = labels_new
     inputs_h = inputs_new
+    print(f"Shape {labels.shape}")
 
     print(f"Removed {counter} inputs ")
 
