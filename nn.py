@@ -59,7 +59,7 @@ class ViscosityNet2(nn.Module):
         channels_int = 1
         for x in range(layer_count):
             layers.append(nn.Conv2d(channels_int, n, k_size,
-                          padding="same", bias=False))
+                          padding="same", bias=True))
             layers.append(nn.ReLU())
             if x % 2:
                 layers.append(nn.Dropout2d(drop))
@@ -148,7 +148,7 @@ def homogenise_inputs(inputs: np.array, params: pd.DataFrame):
 def homogenise_labels(labels: np.array, params: pd.DataFrame):
     labels_h = labels.clone()
     for i, label in enumerate(labels):
-        labels_h[i] = label * params['q'][i]
+        labels_h[i] = label / params['q'][i]
     return labels_h
 
 
@@ -232,11 +232,13 @@ def main() -> None:
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
-    inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
+    inputs_h = torch.from_numpy(inputs)
+    # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
+    labels = homogenise_labels(labels, params)
 
-    for i, _ in enumerate(labels):
-        labels[i] = labels[i] / torch.max(labels[i]) 
-        inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i]) 
+    # for i, _ in enumerate(labels):
+    #     labels[i] = labels[i] / torch.max(labels[i])
+    #     inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i])
     inputs_h = inputs_h.unsqueeze(1)
     labels = labels.unsqueeze(1)
     data = TensorData(inputs_h, labels, settings.device)
