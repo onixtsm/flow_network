@@ -64,7 +64,7 @@ class DoubleConv(nn.Module):
 
 
 class UNET(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1, features = [32, 64, 128, 256]/4):
+    def __init__(self, in_channels=3, out_channels=1, features = [8, 16, 32, 64]):
         super(UNET, self).__init__()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
