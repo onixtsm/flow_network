@@ -150,8 +150,8 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
     return labels_h
 
 
-def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-5):
-    a = 0.5
+def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-9):
+    a = 0
     assert isinstance(eps, float)
     rel = torch.abs((truth - pred) / (truth + eps))
     abs = torch.abs(truth - pred)
