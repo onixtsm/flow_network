@@ -151,7 +151,7 @@ def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-9):
     a = 0
     assert isinstance(eps, float)
     rel = torch.abs((truth - pred) / (truth + eps))
-    abs = torch.square(truth - pred)
+    abs = torch.abs(truth - pred)
     error = a * rel + (1 - a) * abs
     return error.mean(dim=(1, 2)).mean()
 
