@@ -48,89 +48,89 @@ def plot_comparison(input_img, label_img, prediction_img):
 
 
 class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(DoubleConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False), # k_size=3
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
+  def __init__(self, in_channels, out_channels):
+    super(DoubleConv, self).__init__()
+    self.conv = nn.Sequential(
+      nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False), # k_size=3
+      nn.BatchNorm2d(out_channels),
+      nn.ReLU(inplace=True),
+      nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
+      nn.BatchNorm2d(out_channels),
+      nn.ReLU(inplace=True),
+    )
 
-    def forward(self, x):
-        return self.conv(x)
+  def forward(self, x):
+    return self.conv(x)
 
 
 class UNET(nn.Module):
-    def __init__(self, in_channels=3, out_channels=1, features = [4, 8, 16, 32]):
-        super(UNET, self).__init__()
-        self.ups = nn.ModuleList()
-        self.downs = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+  def __init__(self, in_channels=3, out_channels=1, features = [4, 8, 16, 32]):
+    super(UNET, self).__init__()
+    self.ups = nn.ModuleList()
+    self.downs = nn.ModuleList()
+    self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # Down part of UNET
-        for feature in features:
-            self.downs.append(DoubleConv(in_channels, feature))
-            in_channels = feature
+    # Down part of UNET
+    for feature in features:
+      self.downs.append(DoubleConv(in_channels, feature))
+      in_channels = feature
 
-        for feature in reversed(features):
-            self.ups.append(
-                nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2) # check what this does
-            )
-            self.ups.append(DoubleConv(feature * 2, feature))
+    for feature in reversed(features):
+      self.ups.append(
+        nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2) # check what this does
+      )
+      self.ups.append(DoubleConv(feature * 2, feature))
 
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
-        self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
+    self.bottleneck = DoubleConv(features[-1], features[-1]*2)
+    self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
-    def forward(self, x):
-        skip_connections = []
+  def forward(self, x):
+    skip_connections = []
 
-        for down in self.downs:
-            x = down(x)
-            skip_connections.append(x)
-            x = self.pool(x)
+    for down in self.downs:
+      x = down(x)
+      skip_connections.append(x)
+      x = self.pool(x)
 
-        x = self.bottleneck(x)
-        skip_connections = skip_connections[::-1]
+    x = self.bottleneck(x)
+    skip_connections = skip_connections[::-1]
 
-        for id in range(0, len(self.ups), 2):
-            x = self.ups[id](x)
-            skip = skip_connections[id//2]
-            concat_skip = torch.cat((skip, x), dim=1)
-            x = self.ups[id+1](concat_skip)
+    for id in range(0, len(self.ups), 2):
+      x = self.ups[id](x)
+      skip = skip_connections[id//2]
+      concat_skip = torch.cat((skip, x), dim=1)
+      x = self.ups[id+1](concat_skip)
 
-        return self.final_conv(x)
+    return self.final_conv(x)
 
 
 class ViscosityNet2(nn.Module):
-    def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
-        b = True
-        super().__init__()
-        layer_count = int(np.ceil(63.0 / (k_size - 1)))
-        layers = []
-        channels_int = 1
-        for x in range(layer_count):
-            layers.append(nn.Conv2d(channels_int, n, k_size,
-                          padding="same", bias=b))
-            layers.append(nn.ReLU())
-            if x % 2:
-                layers.append(nn.Dropout2d(drop))
-            channels_int = n
-        layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
+  def __init__(self, n, drop=0.5, pool=2, k_size=3) -> None:
+    b = True
+    super().__init__()
+    layer_count = int(np.ceil(63.0 / (k_size - 1)))
+    layers = []
+    channels_int = 1
+    for x in range(layer_count):
+      layers.append(nn.Conv2d(channels_int, n, k_size,
+                    padding="same", bias=b))
+      layers.append(nn.ReLU())
+      if x % 2:
+        layers.append(nn.Dropout2d(drop))
+      channels_int = n
+    layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
 
-        self.conv = nn.Sequential(*layers)
+    self.conv = nn.Sequential(*layers)
 
-    def mult(self, x: torch.Tensor, y):
-        y = y.view(-1, 1, 32, 64)
-        return x * y
+  def mult(self, x: torch.Tensor, y):
+    y = y.view(-1, 1, 32, 64)
+    return x * y
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = self.conv(x)
-        # y = self.dense(y)
-        y = self.mult(y, x)
-        return y  # x.view(-1, 1, 32, 64)
+  def forward(self, x: torch.Tensor) -> torch.Tensor:
+    y = self.conv(x)
+    # y = self.dense(y)
+    y = self.mult(y, x)
+    return y  # x.view(-1, 1, 32, 64)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -185,16 +185,16 @@ def split_data(data, percent=80):
 
 
 def homogenise_params(params: pd.DataFrame) -> pd.DataFrame:
-    params["q"] = params["delta_A"] * \
-        params["delta_p"] / (params["visc"] * params["L"]) * params["delta_A"]
-    return params
+  params["q"] = torch.square(params["delta_A"]) * \
+    params["delta_p"] / (params["visc"] * params["L"]) 
+  return params
 
 
 def homogenise_inputs(inputs: np.array, params: pd.DataFrame):
-    inputs_h = inputs.copy()
-    for i, input in enumerate(inputs):
-        inputs_h[i] = input * params["q"][i]
-    return inputs_h
+  inputs_h = inputs.copy()
+  for i, input in enumerate(inputs):
+    inputs_h[i] = input * params["q"][i]
+  return inputs_h
 
 
 def homogenise_labels(labels: np.array, params: pd.DataFrame):
@@ -288,17 +288,17 @@ def plot_params(params) -> None:
     ax[1, 1].scatter(params.id, params
                      ["delta_A"], label="delta_A")
     ax[1, 1].set_title("delta_A")
-    plt.legend()
-    plt.show()
+  plt.legend()
+  plt.show()
 
 
 def augment_rotationally(inputs, labels):
-    inputs_r = inputs.clone()
-    labels_r = labels.clone()
-    for i, x in enumerate(labels):
-        inputs_r[i] = torch.flip(inputs[i], dims=[0])
-        labels_r[i] = torch.flip(labels[i], dims=[0])
-    return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
+  inputs_r = inputs.clone()
+  labels_r = labels.clone()
+  for i, x in enumerate(labels):
+    inputs_r[i] = torch.flip(inputs[i], dims=[0])
+    labels_r[i] = torch.flip(labels[i], dims=[0])
+  return torch.cat((inputs, inputs_r)), torch.cat((labels, labels_r))
 
 
 def relative_error_loss_phys(pred, target, eps=1e-8, images =  False):
@@ -332,31 +332,22 @@ def main() -> None:
         torch.manual_seed(settings.seed)
 
     params = pd.read_csv("./inputs/train_params.csv", index_col=False)
-    # params = homogenise_params(params)
-    params = homogenise_parameters(params)
+    params = homogenise_params(params)
+    # params = homogenise_parameters(params)
 
     inputs = np.load("./inputs/train_inputs.npy")
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
     inputs_h = torch.from_numpy(inputs)
-    # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
-    labels = homogenise_labels2(labels, params)
-    inputs_h, labels = augment_rotationally(inputs_h, labels)
+    inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
+    # labels = homogenise_labels2(labels, params)
+
+    # inputs_h, labels = augment_rotationally(inputs_h, labels)
 
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
     #     inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i])
     inputs_h = inputs_h.unsqueeze(1)
     labels = labels.unsqueeze(1)
-
-    mean_labels = labels.mean()
-    labels_new = labels.clone()
-    inputs_new = inputs_h.clone()
-
-
-
-
-    labels = labels_new
-    inputs_h = inputs_new
 
     data = TensorData(inputs_h, labels, settings.device)
     train, test = split_data(data, settings.split)
@@ -377,7 +368,7 @@ def main() -> None:
 
 
     model, loss_dict, best_epoch = train_model(
-        train, test_input, test_labels, model, relative_error_loss_phys, settings.epochs, settings.lr, settings.batch, settings.report)
+        train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
 
     combined = {}
