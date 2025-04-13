@@ -72,60 +72,9 @@ class ViscosityNet2(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.conv(x)
         # y = self.dense(y)
-        y = self.mult(y, x)
+        # y = self.mult(y, x)
         return y  # x.view(-1, 1, 32, 64)
 
-
-class ViscosityNet(nn.Module):
-    def __init__(self, n, drop=0.2, pool=2, k_size=3, device="cpu") -> None:
-        super().__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(1, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            # nn.MaxPool2d(pool),
-            nn.Dropout2d(drop),
-
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            # nn.MaxPool2d(pool),
-            nn.Dropout2d(drop),
-
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            # nn.MaxPool2d(pool),
-            nn.Dropout2d(drop),
-
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            # nn.MaxPool2d(pool),
-            nn.Dropout2d(drop),
-
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            nn.Conv2d(n, n, k_size, bias=False, padding="same"),
-            nn.ReLU(),
-            # nn.MaxPool2d(pool),
-            nn.Dropout2d(drop),
-        )
-        self.dense = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(n * 2, 32*64, bias=False)
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        y = self.conv(x)
-        # y = self.dense(y)
-        # y = y.view(-1, 1, 32, 64)
-        # x = y * x
-        return y  # x.view(-1, 1, 32, 64)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -339,11 +288,7 @@ def main() -> None:
     labels = torch.from_numpy(np.load("./inputs/train_labels.npy"))
     for i, _ in enumerate(labels):
         labels[i] = labels[i] / params["delta_A"][i]
-    if 1:
-        inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
-    else:
-        labels = homogenise_labels(labels, params)
-        inputs_h = torch.from_numpy(inputs)
+    inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
 
     inputs_h = inputs_h.unsqueeze(1)
     labels = labels.unsqueeze(1)
@@ -375,7 +320,7 @@ def main() -> None:
 
 if __name__ == "__main__":
     torch.serialization.add_safe_globals(
-        [ViscosityNet2, ViscosityNet, nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Dropout2d, nn.Flatten, nn.Linear])
+        [ViscosityNet2, nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Dropout2d, nn.Flatten, nn.Linear])
     start_time = time.time()
     main()
     print(f"Execution took {time.time() - start_time:.3f} seconds")
