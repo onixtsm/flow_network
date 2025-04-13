@@ -235,12 +235,29 @@ def main() -> None:
     inputs_h = torch.from_numpy(inputs)
     # inputs_h = torch.from_numpy(homogenise_inputs(inputs, params))
     labels = homogenise_labels(labels, params)
+            
 
     # for i, _ in enumerate(labels):
     #     labels[i] = labels[i] / torch.max(labels[i])
     #     inputs_h[i] = inputs_h[i] / torch.max(inputs_h[i])
     inputs_h = inputs_h.unsqueeze(1)
     labels = labels.unsqueeze(1)
+
+    mean_labels = labels.mean()
+    counter = 0
+    labels_new = labels.clone()
+    inputs_new = inputs_h.clone()
+    for i, _ in enumerate(labels):
+        if labels[i].mean() > 3 * mean_labels:
+            labels_new = torch.cat((labels[:i], labels[i+1:]))
+            inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
+            counter += 1
+
+    labels = labels_new
+    inputs_h = inputs_new
+
+    print(f"Removed {counter} inputs ")
+
     data = TensorData(inputs_h, labels, settings.device)
     train, test = split_data(data, settings.split)
     test_input, test_labels = test[:]
@@ -252,7 +269,8 @@ def main() -> None:
         model = ViscosityNet2(n=settings.neurons, k_size=settings.kernel_size,
                               ).to(settings.device)
     else:
-        model = torch.load(settings.model)
+        l = torch.load(settings.model)
+        model = l['model']
 
     model, loss_dict, best_epoch = train_model(
         train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
