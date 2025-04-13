@@ -53,18 +53,19 @@ def plot_comparison(input_img, label_img, prediction_img):
 
 class ViscosityNet2(nn.Module):
     def __init__(self, n, drop=0.4, pool=2, k_size=3, device="cpu") -> None:
+        b = True
         super().__init__()
         layer_count = int(np.ceil(63.0 / k_size))
         layers = []
         channels_int = 1
         for x in range(layer_count):
             layers.append(nn.Conv2d(channels_int, n, k_size,
-                          padding="same", bias=False))
+                          padding="same", bias=b))
             layers.append(nn.ReLU())
-            if x % 2:
-                layers.append(nn.Dropout2d(drop))
+            # if x % 2:
+            #     layers.append(nn.Dropout2d(drop))
             channels_int = n
-        layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=False))
+        layers.append(nn.Conv2d(n, 1, 1, padding="same", bias=b))
 
         self.conv = nn.Sequential(*layers)
 
@@ -295,6 +296,7 @@ def main() -> None:
     t, tt = train[:]
     print(f"Best epoch {best_epoch}")
     predicitons = model(t)
+    predicitons = predicitons * 2
     plot_comparison(t[3], tt[3], predicitons[3].detach())
 
 
