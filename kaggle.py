@@ -127,7 +127,7 @@ def main():
 
     params = pd.read_csv("./inputs/hidden_test_params.csv", index_col=False)
     params = homogenise_params(params)
-    inputs = np.load("./inputs/train_inputs.npy")
+    inputs = np.load("./inputs/hidden_test_inputs.npy")
 
     inputs = torch.from_numpy(inputs)
     inputs = inputs.unsqueeze(1)
