@@ -263,7 +263,7 @@ def train_model(
                 loss_dict["test"].append(test_loss.item())
                 if test_loss.item() < best_loss:
                     best_model = copy.deepcopy(model)
-                    best_losxs = copy.copy(test_loss.item())
+                    best_loss = copy.copy(test_loss.item())
                     e = copy.copy(epoch)
 
             if (epoch + 1) % print_every == 0:
