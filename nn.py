@@ -101,7 +101,11 @@ class UNET(nn.Module):
             concat_skip = torch.cat((skip, x), dim=1)
             x = self.ups[id+1](concat_skip)
 
-        return self.final_conv(x)
+        return self.mult(self.final_conv(x), x)
+
+    def mult(self, x: torch.Tensor, y):
+        y = y.view(-1, 1, 32, 64)
+        return x * y
 
 
 class ViscosityNet2(nn.Module):
