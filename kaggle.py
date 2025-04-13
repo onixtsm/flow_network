@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 
 def save_predictions_to_csv(predictions, csv_save_path):
-    output_np = predictions.cpu().numpy()  # convert to numpy array
+    output_np = predictions.detach().cpu().numpy()  # convert to numpy array
     output_np = output_np.squeeze()  # remove channel dimension new shape: (N, 32, 64)
     unseen_labels_flat = output_np.reshape(
         output_np.shape[0], -1)  # flatten to shape (N, 32*64)
