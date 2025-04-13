@@ -245,19 +245,19 @@ def main() -> None:
     counter = 0
     labels_new = labels.clone()
     inputs_new = inputs_h.clone()
-    if 1:
-        for i, _ in enumerate(labels):
-            if labels[i].mean() > 3 * mean_labels:
-                labels_new = torch.cat((labels[:i], labels[i+1:]))
-                inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
-                counter += 1
-    else:
-        for i, _ in enumerate(labels):
-            if labels[i].mean() < mean_labels:
-                label_diff = torch.abs(mean_labels - labels[i].mean())
-                labels_new = torch.cat((labels_new, (labels[i] * (label_diff)).unsqueeze(0)))
-                inputs_new = torch.cat((inputs_new, (inputs_h[i]).unsqueeze(0)))
-                counter += 1
+    # if 1:
+    #     for i, _ in enumerate(labels):
+    #         if labels[i].mean() > 3 * mean_labels:
+    #             labels_new = torch.cat((labels[:i], labels[i+1:]))
+    #             inputs_new = torch.cat((inputs_h[:i], inputs_h[i+1:]))
+    #             counter += 1
+    # else:
+    #     for i, _ in enumerate(labels):
+    #         if labels[i].mean() < mean_labels:
+    #             label_diff = torch.abs(mean_labels - labels[i].mean())
+    #             labels_new = torch.cat((labels_new, (labels[i] * (label_diff)).unsqueeze(0)))
+    #             inputs_new = torch.cat((inputs_new, (inputs_h[i]).unsqueeze(0)))
+    #             counter += 1
 
 
     labels = labels_new
