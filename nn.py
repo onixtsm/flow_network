@@ -52,7 +52,7 @@ def plot_comparison(input_img, label_img, prediction_img):
 
 
 class ViscosityNet2(nn.Module):
-    def __init__(self, n, drop=0.2, pool=2, k_size=3, device="cpu") -> None:
+    def __init__(self, n, drop=0.4, pool=2, k_size=3, device="cpu") -> None:
         super().__init__()
         layer_count = int(np.ceil(63.0 / k_size))
         layers = []
@@ -150,17 +150,12 @@ def homogenise_labels(labels: np.array, params: pd.DataFrame):
     return labels_h
 
 
-def cosine_loss(pred, label, eps=1e-8):
-    dot = torch.sum(pred * label, dim=1)
-    pred_norm = torch.norm(pred, dim=1)
-    label_norm = torch.norm(label, dim=1)
-    cos_sim = dot / (pred_norm * label_norm + eps)
-    return torch.mean(1 - cos_sim)
-
-
 def mean_loss(pred: torch.Tensor, truth: torch.Tensor, eps: float = 1e-5):
+    a = 0.5
     assert isinstance(eps, float)
-    error = torch.abs((truth - pred) / (truth + eps))
+    rel = torch.abs((truth - pred) / (truth + eps))
+    abs = torch.abs(truth - pred)
+    error = a * rel + (1 - a) * abs
     return error.mean(dim=(1, 2)).mean()
 
 
@@ -286,7 +281,7 @@ def main() -> None:
         model = l['model']
 
     model, loss_dict, best_epoch = train_model(
-        train, test_input, test_labels, model, cosine_loss, settings.epochs, settings.lr, settings.batch, settings.report)
+        train, test_input, test_labels, model, mean_loss, settings.epochs, settings.lr, settings.batch, settings.report)
     time = datetime.datetime.now().strftime("%a_%H_%M")
     torch.save({
         "model": model,
